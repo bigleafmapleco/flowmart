@@ -26,6 +26,7 @@ export function CategoryForm({ category, onSuccess }: CategoryFormProps) {
       } else {
         await createCategory(formData)
       }
+      
       onSuccess?.()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred')

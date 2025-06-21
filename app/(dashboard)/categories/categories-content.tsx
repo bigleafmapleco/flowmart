@@ -1,11 +1,13 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { CategoryDialog } from '@/components/categories/category-dialog'
 import { DeleteCategoryDialog } from '@/components/categories/delete-category-dialog'
-import { Plus, Edit, Trash2 } from 'lucide-react'
+import { Plus, Edit, Trash2, RefreshCw } from 'lucide-react'
+import { getCategories } from '@/app/actions/categories'
 import type { Category } from '@/types/database'
 
 interface CategoriesContentProps {
@@ -13,12 +15,29 @@ interface CategoriesContentProps {
   error: string | null
 }
 
-export function CategoriesContent({ initialCategories, error }: CategoriesContentProps) {
-  const [categories] = useState<Category[]>(initialCategories)
+export function CategoriesContent({ initialCategories, error: initialError }: CategoriesContentProps) {
+  const [categories, setCategories] = useState<Category[]>(initialCategories)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(initialError)
   const [createDialogOpen, setCreateDialogOpen] = useState(false)
   const [editDialogOpen, setEditDialogOpen] = useState(false)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [selectedCategory, setSelectedCategory] = useState<Category | null>(null)
+  const router = useRouter()
+
+  const refreshCategories = async () => {
+    setLoading(true)
+    setError(null)
+    
+    try {
+      const updatedCategories = await getCategories()
+      setCategories(updatedCategories)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to refresh categories')
+    } finally {
+      setLoading(false)
+    }
+  }
 
   const handleEdit = (category: Category) => {
     setSelectedCategory(category)
@@ -30,6 +49,11 @@ export function CategoriesContent({ initialCategories, error }: CategoriesConten
     setDeleteDialogOpen(true)
   }
 
+  const handleDialogClose = () => {
+    // Refresh data when any dialog closes after a successful operation
+    refreshCategories()
+  }
+
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
       year: 'numeric',
@@ -38,10 +62,27 @@ export function CategoriesContent({ initialCategories, error }: CategoriesConten
     })
   }
 
+  // Listen for router refresh events
+  useEffect(() => {
+    refreshCategories()
+  }, [])
+
   if (error) {
     return (
-      <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
-        <p><strong>Error:</strong> {error}</p>
+      <div className="space-y-4">
+        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
+          <div className="flex justify-between items-center">
+            <p><strong>Error:</strong> {error}</p>
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              onClick={refreshCategories}
+              disabled={loading}
+            >
+              <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+            </Button>
+          </div>
+        </div>
       </div>
     )
   }
@@ -55,10 +96,20 @@ export function CategoriesContent({ initialCategories, error }: CategoriesConten
             {categories.length} {categories.length === 1 ? 'category' : 'categories'} total
           </p>
         </div>
-        <Button onClick={() => setCreateDialogOpen(true)}>
-          <Plus className="mr-2 h-4 w-4" />
-          New Category
-        </Button>
+        <div className="flex items-center space-x-2">
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            onClick={refreshCategories}
+            disabled={loading}
+          >
+            <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+          </Button>
+          <Button onClick={() => setCreateDialogOpen(true)}>
+            <Plus className="mr-2 h-4 w-4" />
+            New Category
+          </Button>
+        </div>
       </div>
 
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
@@ -121,19 +172,28 @@ export function CategoriesContent({ initialCategories, error }: CategoriesConten
 
       <CategoryDialog
         open={createDialogOpen}
-        onOpenChange={setCreateDialogOpen}
+        onOpenChange={(open) => {
+          setCreateDialogOpen(open)
+          if (!open) handleDialogClose()
+        }}
       />
 
       <CategoryDialog
         open={editDialogOpen}
-        onOpenChange={setEditDialogOpen}
+        onOpenChange={(open) => {
+          setEditDialogOpen(open)
+          if (!open) handleDialogClose()
+        }}
         category={selectedCategory || undefined}
       />
 
       {selectedCategory && (
         <DeleteCategoryDialog
           open={deleteDialogOpen}
-          onOpenChange={setDeleteDialogOpen}
+          onOpenChange={(open) => {
+            setDeleteDialogOpen(open)
+            if (!open) handleDialogClose()
+          }}
           category={selectedCategory}
         />
       )}
