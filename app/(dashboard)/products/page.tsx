@@ -1,4 +1,18 @@
-export default function ProductsPage() {
+import { Suspense } from 'react'
+import { ProductsContent } from './products-content'
+import { getProducts } from '@/app/actions/products'
+import type { ProductWithCategory } from '@/types/database'
+
+export default async function ProductsPage() {
+  let products: ProductWithCategory[] = []
+  let error = null
+
+  try {
+    products = await getProducts()
+  } catch (err) {
+    error = err instanceof Error ? err.message : 'Failed to load products'
+  }
+
   return (
     <div className="space-y-6">
       <div className="border-b border-gray-200 pb-4">
@@ -6,9 +20,9 @@ export default function ProductsPage() {
         <p className="mt-2 text-gray-600">Manage your product inventory</p>
       </div>
       
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-        <p className="text-gray-500">Product management features coming soon...</p>
-      </div>
+      <Suspense fallback={<div>Loading products...</div>}>
+        <ProductsContent initialProducts={products} error={error} />
+      </Suspense>
     </div>
   )
 } 
