@@ -1,4 +1,17 @@
-export default function CategoriesPage() {
+import { Suspense } from 'react'
+import { CategoriesContent } from './categories-content'
+import { getCategories } from '@/app/actions/categories'
+
+export default async function CategoriesPage() {
+  let categories = []
+  let error = null
+
+  try {
+    categories = await getCategories()
+  } catch (err) {
+    error = err instanceof Error ? err.message : 'Failed to load categories'
+  }
+
   return (
     <div className="space-y-6">
       <div className="border-b border-gray-200 pb-4">
@@ -6,9 +19,9 @@ export default function CategoriesPage() {
         <p className="mt-2 text-gray-600">Organize your product categories</p>
       </div>
       
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-        <p className="text-gray-500">Category management features coming soon...</p>
-      </div>
+      <Suspense fallback={<div>Loading categories...</div>}>
+        <CategoriesContent initialCategories={categories} error={error} />
+      </Suspense>
     </div>
   )
 } 
