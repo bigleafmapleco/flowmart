@@ -1,4 +1,18 @@
-export default function SalesPage() {
+import { Suspense } from 'react'
+import { SalesContent } from './sales-content'
+import { getSales } from '@/app/actions/sales'
+import type { SaleWithProducts } from '@/types/database'
+
+export default async function SalesPage() {
+  let sales: SaleWithProducts[] = []
+  let error = null
+
+  try {
+    sales = await getSales()
+  } catch (err) {
+    error = err instanceof Error ? err.message : 'Failed to load sales'
+  }
+
   return (
     <div className="space-y-6">
       <div className="border-b border-gray-200 pb-4">
@@ -6,9 +20,9 @@ export default function SalesPage() {
         <p className="mt-2 text-gray-600">Track your sales performance</p>
       </div>
       
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-        <p className="text-gray-500">Sales tracking features coming soon...</p>
-      </div>
+      <Suspense fallback={<div>Loading sales...</div>}>
+        <SalesContent initialSales={sales} error={error} />
+      </Suspense>
     </div>
   )
 } 

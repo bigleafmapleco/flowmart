@@ -51,4 +51,41 @@ export interface UpdateProductData {
   sale_price?: number | null
   category_id?: string | null
   images?: string[]
-} 
+}
+
+export interface Sale {
+  id: string
+  name: string
+  start_date: string
+  end_date: string
+  created_at: string
+  updated_at: string
+}
+
+export interface SaleProduct {
+  sale_id: string
+  product_id: string
+  sale_price: number
+  created_at: string
+}
+
+export interface SaleWithProducts extends Sale {
+  sale_products?: (SaleProduct & {
+    product: ProductWithCategory
+  })[]
+  product_count?: number
+}
+
+export interface CreateSaleData {
+  name: string
+  start_date: string
+  end_date: string
+}
+
+export interface UpdateSaleData {
+  name?: string
+  start_date?: string
+  end_date?: string
+}
+
+export type SaleStatus = 'upcoming' | 'active' | 'ended' 
