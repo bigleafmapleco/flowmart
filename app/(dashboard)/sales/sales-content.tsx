@@ -246,16 +246,27 @@ export function SalesContent({ initialSales, error: initialError }: SalesContent
 
       {selectedSale && (
         <Dialog open={productDialogOpen} onOpenChange={setProductDialogOpen}>
-          <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle>
+          <DialogContent 
+            className="!max-w-none !w-[90vw] !h-[90vh] p-0" 
+            style={{ 
+              maxWidth: '1400px !important', 
+              width: '90vw !important', 
+              maxHeight: '90vh !important', 
+              height: '90vh !important',
+              minWidth: '1200px !important'
+            }}
+          >
+            <DialogHeader className="p-6 pb-4 border-b">
+              <DialogTitle className="text-xl">
                 Manage Products - {selectedSale.name}
               </DialogTitle>
             </DialogHeader>
-            <ProductSelection 
-              saleId={selectedSale.id} 
-              onProductsChange={handleDialogClose}
-            />
+            <div className="flex-1 overflow-hidden px-8 pb-8 pt-4">
+              <ProductSelection 
+                saleId={selectedSale.id} 
+                onProductsChange={handleDialogClose}
+              />
+            </div>
           </DialogContent>
         </Dialog>
       )}

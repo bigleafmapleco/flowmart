@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Package, Plus, X, ArrowRight } from 'lucide-react'
+import { Package, Plus, X, ArrowRight, Check } from 'lucide-react'
 import { getAvailableProducts, getProductsInSale, addProductsToSale, removeProductFromSale } from '@/app/actions/sales'
 import { getCategories } from '@/app/actions/categories'
 import type { ProductWithCategory, Category, SaleProduct } from '@/types/database'
@@ -111,137 +111,238 @@ export function ProductSelection({ saleId, onProductsChange }: ProductSelectionP
   }
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 h-full">
       {/* Available Products */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
+      <Card className="flex flex-col h-full">
+        <CardHeader className="pb-3">
+          <CardTitle className="flex items-center gap-2 text-lg">
             <Package className="w-5 h-5" />
             Available Products
           </CardTitle>
           
-          <div className="space-y-3">
-            <div className="flex gap-2">
-              <div className="flex-1">
-                <Input
-                  placeholder="Search products..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                />
-              </div>
-              <Select value={selectedCategory} onValueChange={setSelectedCategory}>
-                <SelectTrigger className="w-40">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Categories</SelectItem>
-                  {categories.map(category => (
-                    <SelectItem key={category.id} value={category.id}>
-                      {category.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+          {/* Search and Filter */}
+          <div className="flex flex-col sm:flex-row gap-2">
+            <div className="flex-1">
+              <Input
+                placeholder="Search products..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="h-9"
+              />
             </div>
-
-            {selectedProducts.length > 0 && (
-              <div className="flex gap-2 items-center">
-                <Input
-                  type="number"
-                  placeholder="Bulk sale price (optional)"
-                  value={bulkSalePrice}
-                  onChange={(e) => setBulkSalePrice(e.target.value)}
-                  className="w-48"
-                />
-                <Button onClick={handleAddProducts} size="sm">
-                  <Plus className="w-4 h-4 mr-1" />
-                  Add {selectedProducts.length} Products
-                </Button>
-              </div>
-            )}
+            <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+              <SelectTrigger className="w-full sm:w-40 h-9">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Categories</SelectItem>
+                {categories.map(category => (
+                  <SelectItem key={category.id} value={category.id}>
+                    {category.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
+
+          {/* Sticky Selection Controls */}
+          {selectedProducts.length > 0 && (
+            <div className="sticky top-0 z-10 bg-white border border-blue-200 rounded-lg p-3 shadow-sm">
+              <div className="flex flex-col sm:flex-row gap-2 items-start sm:items-center">
+                <div className="flex items-center gap-2 text-sm font-medium text-blue-600">
+                  <Check className="w-4 h-4" />
+                  {selectedProducts.length} selected
+                </div>
+                <div className="flex-1 flex flex-col sm:flex-row gap-2">
+                  <Input
+                    type="number"
+                    placeholder="Bulk sale price (optional)"
+                    value={bulkSalePrice}
+                    onChange={(e) => setBulkSalePrice(e.target.value)}
+                    className="w-full sm:w-40 h-9"
+                    min="0"
+                    step="0.01"
+                  />
+                  <Button onClick={handleAddProducts} className="whitespace-nowrap h-9">
+                    <Plus className="w-4 h-4 mr-2" />
+                    Add to Sale
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
         </CardHeader>
         
-        <CardContent className="space-y-2 max-h-96 overflow-y-auto">
-          {loading ? (
-            <p className="text-center text-gray-500 py-4">Loading products...</p>
-          ) : filteredAvailableProducts.length === 0 ? (
-            <p className="text-center text-gray-500 py-4">No products found</p>
-          ) : (
-            filteredAvailableProducts.map(product => (
-              <div
-                key={product.id}
-                className={`flex items-center gap-3 p-3 border rounded cursor-pointer transition-colors ${
-                  selectedProducts.includes(product.id) ? 'bg-blue-50 border-blue-200' : 'hover:bg-gray-50'
-                }`}
-                onClick={() => {
-                  setSelectedProducts(prev => 
-                    prev.includes(product.id) 
-                      ? prev.filter(id => id !== product.id)
-                      : [...prev, product.id]
-                  )
-                }}
-              >
-                {getThumbnail(product.images)}
-                <div className="flex-1 min-w-0">
-                  <p className="font-medium truncate">{product.name}</p>
-                  <p className="text-sm text-gray-500">{product.sku}</p>
-                  <p className="text-sm font-medium">{formatPrice(product.regular_price)}</p>
+        <CardContent className="flex-1 overflow-hidden p-6">
+          <div className="h-full overflow-y-auto space-y-3">
+            {loading ? (
+              <div className="flex items-center justify-center py-12">
+                <div className="text-center">
+                  <Package className="w-8 h-8 text-gray-400 mx-auto mb-2" />
+                  <p className="text-gray-500">Loading products...</p>
                 </div>
-                {product.category && (
-                  <Badge variant="secondary" className="text-xs">
-                    {product.category.name}
-                  </Badge>
-                )}
               </div>
-            ))
-          )}
+            ) : filteredAvailableProducts.length === 0 ? (
+              <div className="flex items-center justify-center py-12">
+                <div className="text-center">
+                  <Package className="w-8 h-8 text-gray-400 mx-auto mb-2" />
+                  <p className="text-gray-500">No products found</p>
+                  <p className="text-sm text-gray-400 mt-1">Try adjusting your search or filters</p>
+                </div>
+              </div>
+            ) : (
+              filteredAvailableProducts.map(product => {
+                const isSelected = selectedProducts.includes(product.id)
+                return (
+                  <div
+                    key={product.id}
+                    className={`group relative flex items-center gap-4 p-4 border-2 rounded-lg cursor-pointer transition-all duration-200 w-full ${
+                      isSelected 
+                        ? 'bg-blue-50 border-blue-300 shadow-sm' 
+                        : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                    }`}
+                    onClick={() => {
+                      setSelectedProducts(prev => 
+                        prev.includes(product.id) 
+                          ? prev.filter(id => id !== product.id)
+                          : [...prev, product.id]
+                      )
+                    }}
+                  >
+                    {/* Selection Indicator - Checkbox Style */}
+                    <div className={`absolute top-4 right-4 w-4 h-4 rounded border-2 flex items-center justify-center transition-all ${
+                      isSelected ? 'bg-blue-500 border-blue-500' : 'border-gray-300 group-hover:border-gray-400'
+                    }`}>
+                      {isSelected && <Check className="w-2.5 h-2.5 text-white" />}
+                    </div>
+
+                    {/* Product Image */}
+                    <div className="flex-shrink-0">
+                      {getThumbnail(product.images)}
+                    </div>
+
+                    {/* Product Info */}
+                    <div className="flex-1 min-w-0 pr-10">
+                      <div className="flex items-center justify-between w-full">
+                        <div className="flex-1 min-w-0">
+                          <h3 className="font-semibold text-gray-900 text-lg leading-tight mb-1" title={product.name}>
+                            {product.name}
+                          </h3>
+                          <div className="flex items-center gap-3">
+                            <p className="text-sm text-gray-500 font-mono">
+                              {product.sku}
+                            </p>
+                            {product.category && (
+                              <Badge variant="secondary" className="text-xs">
+                                {product.category.name}
+                              </Badge>
+                            )}
+                          </div>
+                          {product.description && (
+                            <p className="text-sm text-gray-600 mt-1">
+                              {product.description}
+                            </p>
+                          )}
+                        </div>
+                        
+                        <div className="text-right ml-4">
+                          <p className="text-xl font-bold text-gray-900">
+                            {formatPrice(product.regular_price)}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )
+              })
+            )}
+          </div>
         </CardContent>
       </Card>
 
       {/* Products in Sale */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
+      <Card className="flex flex-col h-full">
+        <CardHeader className="pb-3">
+          <CardTitle className="flex items-center gap-2 text-lg">
             <ArrowRight className="w-5 h-5 text-green-600" />
-            Products in Sale ({productsInSale.length})
+            Products in Sale
+            <Badge variant="outline" className="ml-2">
+              {productsInSale.length}
+            </Badge>
           </CardTitle>
         </CardHeader>
         
-        <CardContent className="space-y-2 max-h-96 overflow-y-auto">
-          {productsInSale.length === 0 ? (
-            <p className="text-center text-gray-500 py-4">No products in this sale</p>
-          ) : (
-            productsInSale.map(saleProduct => (
-              <div key={`${saleProduct.sale_id}-${saleProduct.product_id}`} className="flex items-center gap-3 p-3 border rounded">
-                {getThumbnail(saleProduct.product.images)}
-                <div className="flex-1 min-w-0">
-                  <p className="font-medium truncate">{saleProduct.product.name}</p>
-                  <p className="text-sm text-gray-500">{saleProduct.product.sku}</p>
-                  <div className="flex items-center gap-2 mt-1">
-                    <span className="text-sm text-gray-500 line-through">
-                      {formatPrice(saleProduct.product.regular_price)}
-                    </span>
-                    <span className="text-sm font-medium text-green-600">
-                      {formatPrice(saleProduct.sale_price)}
-                    </span>
-                    {saleProduct.sale_price < saleProduct.product.regular_price && (
-                      <Badge variant="destructive" className="text-xs">
-                        {getSavingsPercentage(saleProduct.product.regular_price, saleProduct.sale_price)}% OFF
-                      </Badge>
-                    )}
-                  </div>
+        <CardContent className="flex-1 overflow-hidden p-6">
+          <div className="h-full overflow-y-auto space-y-3">
+            {productsInSale.length === 0 ? (
+              <div className="flex items-center justify-center py-12">
+                <div className="text-center">
+                  <ArrowRight className="w-8 h-8 text-gray-400 mx-auto mb-2" />
+                  <p className="text-gray-500">No products in this sale</p>
+                  <p className="text-sm text-gray-400 mt-1">Select products from the left to add them</p>
                 </div>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => handleRemoveProduct(saleProduct.product.id)}
-                >
-                  <X className="w-4 h-4" />
-                </Button>
               </div>
-            ))
-          )}
+            ) : (
+              productsInSale.map(saleProduct => (
+                <div 
+                  key={`${saleProduct.sale_id}-${saleProduct.product_id}`} 
+                  className="flex items-center gap-4 p-4 border rounded-lg bg-green-50 border-green-200 w-full"
+                >
+                  {/* Product Image */}
+                  <div className="flex-shrink-0">
+                    {getThumbnail(saleProduct.product.images)}
+                  </div>
+
+                  {/* Product Info */}
+                  <div className="flex-1 min-w-0 pr-10">
+                    <div className="flex items-center justify-between w-full">
+                      <div className="flex-1 min-w-0">
+                        <h3 className="font-semibold text-gray-900 text-lg leading-tight mb-1" title={saleProduct.product.name}>
+                          {saleProduct.product.name}
+                        </h3>
+                        <p className="text-sm text-gray-500 font-mono">
+                          {saleProduct.product.sku}
+                        </p>
+                        {saleProduct.product.description && (
+                          <p className="text-sm text-gray-600 mt-1">
+                            {saleProduct.product.description}
+                          </p>
+                        )}
+                      </div>
+                      
+                      <div className="text-right ml-4">
+                        <div className="flex items-center gap-2 justify-end mb-1">
+                          <span className="text-sm text-gray-500 line-through">
+                            {formatPrice(saleProduct.product.regular_price)}
+                          </span>
+                          <span className="text-xl font-bold text-green-700">
+                            {formatPrice(saleProduct.sale_price)}
+                          </span>
+                        </div>
+                        {saleProduct.sale_price < saleProduct.product.regular_price && (
+                          <div className="text-right">
+                            <Badge variant="destructive" className="text-xs">
+                              {getSavingsPercentage(saleProduct.product.regular_price, saleProduct.sale_price)}% OFF
+                            </Badge>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Remove Button */}
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => handleRemoveProduct(saleProduct.product.id)}
+                    className="flex-shrink-0 text-red-500 hover:text-red-700 hover:bg-red-50"
+                  >
+                    <X className="w-4 h-4" />
+                  </Button>
+                </div>
+              ))
+            )}
+          </div>
         </CardContent>
       </Card>
     </div>
