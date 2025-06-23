@@ -26,6 +26,8 @@ export function ProductSelection({ saleId, onProductsChange }: ProductSelectionP
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedProducts, setSelectedProducts] = useState<string[]>([])
   const [bulkSalePrice, setBulkSalePrice] = useState('')
+  const [error, setError] = useState<string | null>(null)
+  const [successMessage, setSuccessMessage] = useState<string | null>(null)
 
   const loadData = async () => {
     setLoading(true)
@@ -57,18 +59,33 @@ export function ProductSelection({ saleId, onProductsChange }: ProductSelectionP
     return matchesCategory && matchesSearch
   })
 
+  // Get IDs of products already in sale for easy lookup
+  const productsInSaleIds = new Set(productsInSale.map(sp => sp.product_id))
+
   const handleAddProducts = async () => {
     if (selectedProducts.length === 0) return
 
+    setError(null)
+    setSuccessMessage(null)
+
     try {
       const salePrice = bulkSalePrice ? parseFloat(bulkSalePrice) : undefined
-      await addProductsToSale(saleId, selectedProducts, salePrice)
+      const result = await addProductsToSale(saleId, selectedProducts, salePrice)
+      
       await loadData()
       setSelectedProducts([])
       setBulkSalePrice('')
+      setSuccessMessage(result.message)
       onProductsChange?.()
+      
+      // Clear success message after 5 seconds
+      setTimeout(() => setSuccessMessage(null), 5000)
     } catch (error) {
       console.error('Error adding products:', error)
+      setError(error instanceof Error ? error.message : 'Failed to add products to sale')
+      
+      // Clear error message after 8 seconds
+      setTimeout(() => setError(null), 8000)
     }
   }
 
@@ -111,10 +128,12 @@ export function ProductSelection({ saleId, onProductsChange }: ProductSelectionP
   }
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 h-full">
+    <div className="max-h-[80vh] md:max-h-[90vh] overflow-hidden flex flex-col">
+      
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 flex-1 overflow-hidden">
       {/* Available Products */}
-      <Card className="flex flex-col h-full">
-        <CardHeader className="pb-3">
+      <Card className="flex flex-col h-full overflow-hidden">
+        <CardHeader className="pb-3 flex-shrink-0 sticky top-0 bg-white z-10 border-b">
           <CardTitle className="flex items-center gap-2 text-lg">
             <Package className="w-5 h-5" />
             Available Products
@@ -145,9 +164,28 @@ export function ProductSelection({ saleId, onProductsChange }: ProductSelectionP
             </Select>
           </div>
 
+          {/* Error/Success Messages */}
+          {error && (
+            <div className="bg-red-50 border border-red-200 rounded-lg p-3">
+              <div className="flex items-center gap-2 text-sm text-red-700">
+                <X className="w-4 h-4" />
+                {error}
+              </div>
+            </div>
+          )}
+          
+          {successMessage && (
+            <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+              <div className="flex items-center gap-2 text-sm text-green-700">
+                <Check className="w-4 h-4" />
+                {successMessage}
+              </div>
+            </div>
+          )}
+
           {/* Sticky Selection Controls */}
           {selectedProducts.length > 0 && (
-            <div className="sticky top-0 z-10 bg-white border border-blue-200 rounded-lg p-3 shadow-sm">
+            <div className="bg-white border border-blue-200 rounded-lg p-3 shadow-sm">
               <div className="flex flex-col sm:flex-row gap-2 items-start sm:items-center">
                 <div className="flex items-center gap-2 text-sm font-medium text-blue-600">
                   <Check className="w-4 h-4" />
@@ -174,7 +212,13 @@ export function ProductSelection({ saleId, onProductsChange }: ProductSelectionP
         </CardHeader>
         
         <CardContent className="flex-1 overflow-hidden p-6">
-          <div className="h-full overflow-y-auto space-y-3">
+          <div 
+            className="h-40 overflow-y-auto custom-scrollbar space-y-3 bg-yellow-50 border border-yellow-300"
+            style={{
+              scrollbarWidth: 'thin',
+              scrollbarColor: '#888 #f1f1f1'
+            }}
+          >
             {loading ? (
               <div className="flex items-center justify-center py-12">
                 <div className="text-center">
@@ -193,15 +237,25 @@ export function ProductSelection({ saleId, onProductsChange }: ProductSelectionP
             ) : (
               filteredAvailableProducts.map(product => {
                 const isSelected = selectedProducts.includes(product.id)
+                const isAlreadyInSale = productsInSaleIds.has(product.id)
+                
                 return (
                   <div
                     key={product.id}
-                    className={`group relative flex items-center gap-4 p-4 border-2 rounded-lg cursor-pointer transition-all duration-200 w-full ${
-                      isSelected 
-                        ? 'bg-blue-50 border-blue-300 shadow-sm' 
-                        : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                    className={`group relative flex items-center gap-4 p-4 border-2 rounded-lg transition-all duration-200 w-full ${
+                      isAlreadyInSale
+                        ? 'bg-gray-50 border-gray-300 opacity-60 cursor-not-allowed'
+                        : isSelected 
+                          ? 'bg-blue-50 border-blue-300 shadow-sm cursor-pointer' 
+                          : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50 cursor-pointer'
                     }`}
                     onClick={() => {
+                      if (isAlreadyInSale) {
+                        setError('This product is already in the sale')
+                        setTimeout(() => setError(null), 3000)
+                        return
+                      }
+                      
                       setSelectedProducts(prev => 
                         prev.includes(product.id) 
                           ? prev.filter(id => id !== product.id)
@@ -209,12 +263,26 @@ export function ProductSelection({ saleId, onProductsChange }: ProductSelectionP
                       )
                     }}
                   >
-                    {/* Selection Indicator - Checkbox Style */}
+                    {/* Selection Indicator */}
                     <div className={`absolute top-4 right-4 w-4 h-4 rounded border-2 flex items-center justify-center transition-all ${
-                      isSelected ? 'bg-blue-500 border-blue-500' : 'border-gray-300 group-hover:border-gray-400'
+                      isAlreadyInSale 
+                        ? 'bg-gray-400 border-gray-400'
+                        : isSelected 
+                          ? 'bg-blue-500 border-blue-500' 
+                          : 'border-gray-300 group-hover:border-gray-400'
                     }`}>
-                      {isSelected && <Check className="w-2.5 h-2.5 text-white" />}
+                      {isAlreadyInSale ? (
+                        <Check className="w-2.5 h-2.5 text-white" />
+                      ) : isSelected ? (
+                        <Check className="w-2.5 h-2.5 text-white" />
+                      ) : null}
                     </div>
+                    
+                    {isAlreadyInSale && (
+                      <div className="absolute top-1 right-1 bg-green-500 rounded-full p-1">
+                        <Check className="w-2 h-2 text-white" />
+                      </div>
+                    )}
 
                     {/* Product Image */}
                     <div className="flex-shrink-0">
@@ -261,8 +329,8 @@ export function ProductSelection({ saleId, onProductsChange }: ProductSelectionP
       </Card>
 
       {/* Products in Sale */}
-      <Card className="flex flex-col h-full">
-        <CardHeader className="pb-3">
+      <Card className="flex flex-col h-full overflow-hidden">
+        <CardHeader className="pb-3 flex-shrink-0 sticky top-0 bg-white z-10 border-b">
           <CardTitle className="flex items-center gap-2 text-lg">
             <ArrowRight className="w-5 h-5 text-green-600" />
             Products in Sale
@@ -273,7 +341,13 @@ export function ProductSelection({ saleId, onProductsChange }: ProductSelectionP
         </CardHeader>
         
         <CardContent className="flex-1 overflow-hidden p-6">
-          <div className="h-full overflow-y-auto space-y-3">
+          <div 
+            className="h-40 overflow-y-auto custom-scrollbar space-y-3 bg-blue-50 border border-blue-300"
+            style={{
+              scrollbarWidth: 'thin',
+              scrollbarColor: '#888 #f1f1f1'
+            }}
+          >
             {productsInSale.length === 0 ? (
               <div className="flex items-center justify-center py-12">
                 <div className="text-center">
@@ -345,6 +419,7 @@ export function ProductSelection({ saleId, onProductsChange }: ProductSelectionP
           </div>
         </CardContent>
       </Card>
+      </div>
     </div>
   )
 } 

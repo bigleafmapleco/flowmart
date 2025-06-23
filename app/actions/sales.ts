@@ -157,12 +157,44 @@ export async function addProductsToSale(saleId: string, productIds: string[], sa
   try {
     const supabase = await createServerClient()
 
+    // Check which products are already in the sale
+    const { data: existingProducts, error: checkError } = await supabase
+      .from('sale_products')
+      .select('product_id')
+      .eq('sale_id', saleId)
+      .in('product_id', productIds)
+
+    if (checkError) {
+      throw new Error(`Failed to check existing products: ${checkError.message}`)
+    }
+
+    const existingProductIds = existingProducts?.map(p => p.product_id) || []
+    const newProductIds = productIds.filter(id => !existingProductIds.includes(id))
+
+    // If no new products to add, return early with appropriate message
+    if (newProductIds.length === 0) {
+      const duplicateCount = existingProductIds.length
+      throw new Error(
+        duplicateCount === 1 
+          ? 'This product is already in the sale' 
+          : `${duplicateCount} products are already in the sale`
+      )
+    }
+
+    // If there are both new and duplicate products, warn about duplicates
+    let warningMessage = ''
+    if (existingProductIds.length > 0) {
+      warningMessage = existingProductIds.length === 1 
+        ? '. Note: 1 product was already in the sale and was skipped'
+        : `. Note: ${existingProductIds.length} products were already in the sale and were skipped`
+    }
+
     // If no sale price provided, use the product's regular price
     let saleProducts = []
     
     if (salePrice) {
-      // Use the same sale price for all products
-      saleProducts = productIds.map(productId => ({
+      // Use the same sale price for all new products
+      saleProducts = newProductIds.map(productId => ({
         sale_id: saleId,
         product_id: productId,
         sale_price: salePrice
@@ -172,7 +204,7 @@ export async function addProductsToSale(saleId: string, productIds: string[], sa
       const { data: products, error: productsError } = await supabase
         .from('products')
         .select('id, regular_price')
-        .in('id', productIds)
+        .in('id', newProductIds)
 
       if (productsError) {
         throw new Error(`Failed to fetch product prices: ${productsError.message}`)
@@ -194,7 +226,11 @@ export async function addProductsToSale(saleId: string, productIds: string[], sa
     }
 
     revalidatePath('/sales')
-    return { success: true, message: 'Products added to sale successfully' }
+    const successMessage = newProductIds.length === 1 
+      ? `1 product added to sale successfully${warningMessage}`
+      : `${newProductIds.length} products added to sale successfully${warningMessage}`
+    
+    return { success: true, message: successMessage }
   } catch (error) {
     console.error('Error adding products to sale:', error)
     throw error
